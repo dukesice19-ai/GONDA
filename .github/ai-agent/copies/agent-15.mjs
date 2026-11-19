@@ -43,7 +43,7 @@ ${roster}`;
 let SYSTEM = BASE_SYSTEM + "\n" + roleLine(ROLE);
 function useRole(r) { ROLE = r; SYSTEM = BASE_SYSTEM + "\n" + roleLine(r); }
 
-// ---------- model call (GitHub Models free by default; Groq/Cerebras optional for speed) ----------
+// ---------- model call: private model inside the GitHub runner (no outside AI company) ----------
 function provider() {
   // Your own key for a service you choose (optional). Otherwise: private model running inside this GitHub runner.
   if (env.AI_API_KEY) return { url: (env.AI_API_BASE || "").replace(/\/$/, "") + "/chat/completions", key: env.AI_API_KEY, model: env.AGENT_MODEL };
