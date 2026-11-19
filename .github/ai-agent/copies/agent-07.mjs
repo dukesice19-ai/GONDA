@@ -27,6 +27,11 @@ You are one identical, versatile, comprehensive agent. You can act as:
 - Security reviewer: spot secrets, unsafe code and risky settings.
 - Product and growth helper: ideas, roadmaps, content plans, user stories.
 - Project manager: turn issues into tasks, estimate effort, track progress.
+Company mission: make revenue and sales for GODFREY TRADING PTY LTD.
+- Every task should move toward paid products or services and real sales.
+- Every paid offer should accept Nexus coins (NXS) as a payment option, alongside normal payment (card/PayPal/Stripe). Price in AUD, with the NXS amount shown.
+- Only take on work you can fully complete in writing in one response: code, sales copy, pricing, offers, scripts, listings, emails, plans, checklists.
+- Never claim you sold, sent, posted, published or got paid for anything. Never invent sales numbers. Put anything only the owner can do (publish, list, send, sign up, accept payment) under "Owner actions".
 Rules:
 - Use simple, direct language. Be thorough but skip filler.
 - Use the repository context you are given; say clearly when something is missing or unknown. Never invent files or facts.
@@ -148,6 +153,48 @@ if (mode === "report") {
   const full = `_Updated ${new Date().toISOString().slice(0, 10)}_\n\n${body}\n\n<sub>Nexus Universal AI Agent</sub>`;
   if (existing) await gh(`/repos/${REPO}/issues/${existing.number}`, "PATCH", { body: full });
   else await gh(`/repos/${REPO}/issues`, "POST", { title, body: full });
+}
+
+if (mode === "daily") {
+  // Leader's daily shift: revenue-focused work plan for all 20 specialists, procedures, workflows, revenue tracker, daily log.
+  const today = new Date(Date.now() + 11 * 3600e3).toISOString().slice(0, 10); // Sydney date
+  const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "");
+  const sop = read("ops/PROCEDURES.md"), wf = read("ops/WORKFLOWS.md"), rev = read("ops/REVENUE.md");
+  const prev = fs.existsSync("ops/daily") ? fs.readdirSync("ops/daily").sort().slice(-1)[0] : null;
+  const [issues, commits] = await Promise.all([
+    gh(`/repos/${REPO}/issues?state=open&per_page=30`).catch(() => []),
+    gh(`/repos/${REPO}/commits?per_page=10`).catch(() => []),
+  ]);
+  const state = `Date: ${today}\nOpen issues:\n${issues.filter((i) => !/^(Daily work log|Weekly AI agent report)/.test(i.title)).map((i) => `#${i.number} ${i.title}`).join("\n") || "none"}\nRecent commits:\n${commits.map((c) => c.commit.message.split("\n")[0]).join("\n") || "none"}\nRevenue tracker:\n${rev.slice(0, 5000) || "none yet"}\nYesterday's log:\n${prev ? read("ops/daily/" + prev).slice(0, 3000) : "none (first day)"}\nCurrent procedures:\n${sop.slice(0, 2000) || "none yet"}`;
+  const raw = await llm(`${repoContext()}\n\n${state}\n\nAs Leader, write today's REVENUE work plan. Give every one of the 20 specialists one concrete task they can fully finish today as a written deliverable (code, offer, price list, sales page copy, outreach script, marketplace listing text, email, checkout or "pay with Nexus coins" code, invoice template, revenue report). Focus on paid products and services that can be built from this repository and the company's other products, sales, and accepting Nexus coins as payment. Match each task to the specialist's occupation. No one may be idle. Build on yesterday; don't repeat finished work. Reply ONLY with a JSON array of 20 strings, in team order.`, 2500);
+  let subs; try { subs = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1)); } catch { subs = []; }
+  subs = subs.slice(0, 20); while (subs.length < 20) subs.push(`As the ${ROLES.copies[subs.length].title}, deliver one ready-to-use asset today that helps sell a paid product or service from this repository (with a Nexus coin payment option).`);
+  fs.mkdirSync("swarm", { recursive: true });
+  fs.writeFileSync("swarm/plan.json", JSON.stringify({ task: `Daily revenue work plan for ${today} in ${REPO}`, subs }, null, 2));
+  for (let i = 0; i < 20; i++) {
+    const n = String(i + 1).padStart(2, "0");
+    try { execSync(`node .github/ai-agent/copies/agent-${n}.mjs worker ${i}`, { stdio: "inherit", env }); }
+    catch { fs.mkdirSync("swarm-out", { recursive: true }); fs.writeFileSync(`swarm-out/worker-${n}.md`, `### ${i + 1}. ${ROLES.copies[i].title}\n**Task:** ${subs[i]}\n\n_Not completed today (model limit or error). Carry over to tomorrow._\n`); }
+  }
+  const parts = fs.readdirSync("swarm-out").sort().map((f) => fs.readFileSync(`swarm-out/${f}`, "utf8"));
+  const all = parts.join("\n---\n").slice(0, 50000);
+  const summary = await llm(`Today's specialist results for ${REPO}:\n\n${all}\n\nAs Leader, write the daily report: 1) what got done toward revenue, 2) a table of the 20 specialists with task and status (done / carry over), 3) "Owner actions today": a short checklist of things only the owner can do to turn today's work into money (publish, list, send, set up payment), 4) blockers, 5) tomorrow's revenue priorities.`, 3000);
+  const ownerSales = (rev.match(/## Actual sales \(owner fills in\)[\s\S]*?(?=\n## |$)/) || ["## Actual sales (owner fills in)\n\n| Date | Product | Paid in (AUD / NXS) | Amount | Notes |\n|---|---|---|---|---|\n"])[0];
+  const newRev = await llm(`Current revenue tracker:\n${rev.slice(0, 10000) || "none"}\n\nToday's results:\n${all.slice(0, 20000)}\n\nAs Leader, write the updated REVENUE.md with these sections: "## Offers" (table: product/service, price AUD, price in NXS, payment options, sales channel, status: idea/ready/live, owner action needed), "## Sales pipeline" (leads/partners and next step), "## Revenue targets" (weekly and monthly targets), "## Next revenue actions". Do NOT include an Actual sales section; it is added separately. Never invent sales. Output only markdown.`, 3500);
+  const newSop = await llm(`Current standard operating procedures (may be empty):\n${sop.slice(0, 12000)}\n\nToday's results:\n${all.slice(0, 20000)}\n\nAs Leader, write the full, updated PROCEDURES.md: numbered standard operating procedures (purpose, who does it, steps, checks) for how this team plans work, builds paid offers, prices them in AUD and NXS, makes sales, accepts Nexus coin payments, reviews, tests, deploys, documents and reports revenue. Keep what still applies, improve from today. Plain simple language. Output only markdown.`, 4000);
+  const newWf = await llm(`Current workflows (may be empty):\n${wf.slice(0, 8000)}\n\nToday's results:\n${all.slice(0, 15000)}\n\nAs Leader, write the full, updated WORKFLOWS.md: step-by-step workflows showing how work moves between the 20 specialists from idea to paid sale (for example: Research Analyst -> Product Manager -> Financial Analyst (pricing) -> Software Engineer -> QA Tester -> Content Creator -> Marketing Strategist -> Sales & Partnerships Lead -> Customer Support Lead). Include the daily routine and a hand-off table. Output only markdown.`, 3000);
+  fs.mkdirSync("ops/daily", { recursive: true });
+  fs.writeFileSync(`ops/daily/${today}.md`, `# Daily work log: ${today}\n\n${summary}\n\n## Specialist deliverables\n\n${parts.join("\n")}\n`);
+  fs.writeFileSync("ops/REVENUE.md", `${newRev}\n\n${ownerSales.trim()}\n`);
+  fs.writeFileSync("ops/PROCEDURES.md", newSop + "\n");
+  fs.writeFileSync("ops/WORKFLOWS.md", newWf + "\n");
+  try {
+    execSync(`git config user.name "nexus-ai-leader[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com" && git add ops && git commit -qm "Leader daily shift ${today}: revenue plan, procedures, workflows" && git push -q`, { stdio: "inherit" });
+  } catch (e) { console.log("Commit skipped:", e.message); }
+  const title = "Daily work log";
+  let log = issues.find((i) => i.title === title);
+  if (!log) log = await gh(`/repos/${REPO}/issues`, "POST", { title, body: "The Leader posts each day's revenue work plan and results here. Full files are in the `ops/` folder.\n\n<sub>Nexus Universal AI Agent</sub>" });
+  await comment(log.number, `## ${today}\n\n${summary.slice(0, 60000)}\n\nFull log: \`ops/daily/${today}.md\` · Revenue: \`ops/REVENUE.md\` · Procedures: \`ops/PROCEDURES.md\` · Workflows: \`ops/WORKFLOWS.md\``);
 }
 
 } catch (e) {

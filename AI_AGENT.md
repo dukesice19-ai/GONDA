@@ -34,6 +34,21 @@ The **Leader** (`agent.mjs`) handles normal requests, splits big jobs across the
 
 Each specialist is a copy of the same agent (`copies/agent-01.mjs` to `agent-20.mjs`) with its own occupation, set in `.github/ai-agent/roles.json`. Edit that file to change jobs.
 
+## The Leader's daily revenue shift (8am Sydney, every day)
+The team's main focus is **revenue and sales**: paid products and services, with **Nexus coins (NXS) accepted as payment**.
+
+1. The Leader checks the repo, the revenue tracker and yesterday's log.
+2. It writes today's revenue work plan and gives **every one of the 20 specialists a task they can fully finish**: offers, prices (AUD + NXS), sales pages, outreach scripts, listings, and "pay with Nexus coins" checkout code. No one sits idle.
+3. It runs all 20 specialists.
+4. It updates:
+   - `ops/REVENUE.md`: offers, prices, sales pipeline, targets and next actions. **You fill in the "Actual sales" table yourself.** The agents never invent sales.
+   - `ops/PROCEDURES.md`: standard operating procedures
+   - `ops/WORKFLOWS.md`: how work moves from idea to paid sale
+   - `ops/daily/<date>.md`: the full day's work
+5. It posts a summary in the **Daily work log** issue, including **Owner actions today**: the few steps only you can do, such as publishing, listing or setting up payment.
+
+To start a shift right now: Actions -> Nexus AI Agent -> Run workflow -> type `daily` as the task.
+
 ## How to use it
 | You do this | The agent does this |
 |---|---|

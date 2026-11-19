@@ -9,6 +9,7 @@ on:
     types: [created]
   schedule:
     - cron: "0 22 * * 0"   # weekly report, Monday 9am Sydney
+    - cron: "0 21 * * *"   # Leader's daily revenue shift, 8am Sydney
   workflow_dispatch:
     inputs:
       task:
@@ -41,7 +42,7 @@ jobs:
       (github.event_name == 'issues' && !contains(github.event.issue.body, '/agent swarm')) ||
       (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/agent') && !startsWith(github.event.comment.body, '/agent swarm') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'workflow_dispatch' && !inputs.swarm)
+      (github.event_name == 'workflow_dispatch' && !inputs.swarm && inputs.task != 'daily')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -103,10 +104,24 @@ jobs:
       - run: node .github/ai-agent/agent.mjs combine
 
   report:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 22 * * 0'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: node .github/ai-agent/agent.mjs report
+
+  daily:
+    # Leader's daily revenue shift: tasks for all 20 specialists, revenue tracker, procedures, workflows, daily log.
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 21 * * *') || (github.event_name == 'workflow_dispatch' && inputs.task == 'daily')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node .github/ai-agent/agent.mjs daily
