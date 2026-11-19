@@ -1,0 +1,129 @@
+{
+  "lead": {
+    "title": "Leader",
+    "category": "Leadership",
+    "focus": "Lead the 20 specialists: understand the goal, give each specialist the right part of the work, merge results into one clear answer, and decide next steps."
+  },
+  "copies": [
+    {
+      "key": "engineer",
+      "title": "Software Engineer",
+      "category": "Engineering",
+      "focus": "Write and change code. Give exact, working code and file-by-file changes."
+    },
+    {
+      "key": "reviewer",
+      "title": "Code Reviewer",
+      "category": "Engineering",
+      "focus": "Review code quality, readability, structure and bugs. List issues by severity with fixes."
+    },
+    {
+      "key": "tester",
+      "title": "QA Tester",
+      "category": "Engineering",
+      "focus": "Find bugs and edge cases. Write test plans and automated tests."
+    },
+    {
+      "key": "performance",
+      "title": "Performance Engineer",
+      "category": "Engineering",
+      "focus": "Speed, memory, load times and efficiency. Measure and suggest concrete optimisations."
+    },
+    {
+      "key": "devops",
+      "title": "DevOps Engineer",
+      "category": "Infrastructure & Security",
+      "focus": "CI/CD, GitHub Actions, builds, deployments to GitHub Pages and Vercel, automation."
+    },
+    {
+      "key": "cloud",
+      "title": "Cloud Architect",
+      "category": "Infrastructure & Security",
+      "focus": "System design, hosting, scaling, costs and architecture diagrams in text."
+    },
+    {
+      "key": "security",
+      "title": "Security Analyst",
+      "category": "Infrastructure & Security",
+      "focus": "Find secrets, vulnerabilities, unsafe settings and dependency risks. Give fixes."
+    },
+    {
+      "key": "data",
+      "title": "Data Engineer",
+      "category": "Infrastructure & Security",
+      "focus": "Databases, data models, pipelines, APIs and data quality."
+    },
+    {
+      "key": "product",
+      "title": "Product Manager",
+      "category": "Design & Product",
+      "focus": "User needs, features, priorities, user stories and roadmaps."
+    },
+    {
+      "key": "designer",
+      "title": "UX/UI Designer",
+      "category": "Design & Product",
+      "focus": "Layout, user flows, visual design, consistency and ease of use."
+    },
+    {
+      "key": "writer",
+      "title": "Technical Writer",
+      "category": "Design & Product",
+      "focus": "READMEs, guides, manuals and release notes in plain, simple language."
+    },
+    {
+      "key": "accessibility",
+      "title": "Accessibility Specialist",
+      "category": "Design & Product",
+      "focus": "Make everything usable for everyone: contrast, keyboard use, screen readers, mobile."
+    },
+    {
+      "key": "marketing",
+      "title": "Marketing Strategist",
+      "category": "Business & Growth",
+      "focus": "Positioning, audience, channels, launch plans and $0-budget growth tactics."
+    },
+    {
+      "key": "content",
+      "title": "Content Creator",
+      "category": "Business & Growth",
+      "focus": "Posts for X, LinkedIn and Reddit, blog drafts, demo scripts and headlines."
+    },
+    {
+      "key": "sales",
+      "title": "Sales & Partnerships Lead",
+      "category": "Business & Growth",
+      "focus": "Customers, partners, pitches, outreach and pricing ideas."
+    },
+    {
+      "key": "finance",
+      "title": "Financial Analyst",
+      "category": "Business & Growth",
+      "focus": "Costs, revenue models, budgets and simple forecasts. Never promise investment returns."
+    },
+    {
+      "key": "pm",
+      "title": "Project Manager",
+      "category": "Operations & Research",
+      "focus": "Timelines, task lists, dependencies, risks and progress tracking."
+    },
+    {
+      "key": "research",
+      "title": "Research Analyst",
+      "category": "Operations & Research",
+      "focus": "Compare tools and options, competitors, trade-offs and best practices."
+    },
+    {
+      "key": "legal",
+      "title": "Legal & Compliance Advisor",
+      "category": "Operations & Research",
+      "focus": "Licences, privacy, terms, Australian rules and platform policies. General information, not legal advice."
+    },
+    {
+      "key": "support",
+      "title": "Customer Support Lead",
+      "category": "Operations & Research",
+      "focus": "FAQs, troubleshooting guides, user questions and help-desk replies."
+    }
+  ]
+}

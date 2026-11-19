@@ -5,12 +5,42 @@ This repository has the Nexus Universal AI Agent. It's the same agent in every G
 ## What it can do
 Write and fix code, review code, plan projects, research, write docs, help with deployment, check security, and suggest product and growth ideas.
 
+## The team: 1 Leader + 20 specialists
+
+The **Leader** (`agent.mjs`) handles normal requests, splits big jobs across the team and merges the results.
+
+| # | Occupation | Department | Ask them directly |
+|---|---|---|---|
+| 01 | Software Engineer | Engineering | `/agent engineer` |
+| 02 | Code Reviewer | Engineering | `/agent reviewer` |
+| 03 | QA Tester | Engineering | `/agent tester` |
+| 04 | Performance Engineer | Engineering | `/agent performance` |
+| 05 | DevOps Engineer | Infrastructure & Security | `/agent devops` |
+| 06 | Cloud Architect | Infrastructure & Security | `/agent cloud` |
+| 07 | Security Analyst | Infrastructure & Security | `/agent security` |
+| 08 | Data Engineer | Infrastructure & Security | `/agent data` |
+| 09 | Product Manager | Design & Product | `/agent product` |
+| 10 | UX/UI Designer | Design & Product | `/agent designer` |
+| 11 | Technical Writer | Design & Product | `/agent writer` |
+| 12 | Accessibility Specialist | Design & Product | `/agent accessibility` |
+| 13 | Marketing Strategist | Business & Growth | `/agent marketing` |
+| 14 | Content Creator | Business & Growth | `/agent content` |
+| 15 | Sales & Partnerships Lead | Business & Growth | `/agent sales` |
+| 16 | Financial Analyst | Business & Growth | `/agent finance` |
+| 17 | Project Manager | Operations & Research | `/agent pm` |
+| 18 | Research Analyst | Operations & Research | `/agent research` |
+| 19 | Legal & Compliance Advisor | Operations & Research | `/agent legal` |
+| 20 | Customer Support Lead | Operations & Research | `/agent support` |
+
+Each specialist is a copy of the same agent (`copies/agent-01.mjs` to `agent-20.mjs`) with its own occupation, set in `.github/ai-agent/roles.json`. Edit that file to change jobs.
+
 ## How to use it
 | You do this | The agent does this |
 |---|---|
 | Open a new issue | Replies with an answer or plan |
-| Comment `/agent <your request>` | Replies in the issue |
-| Comment `/agent swarm <big task>` | Splits the task across **20 parallel workers**, then posts one combined answer |
+| Comment `/agent <your request>` | The Leader replies in the issue |
+| Comment `/agent security <request>` (or any key below) | That specialist replies |
+| Comment `/agent swarm <big task>` | The Leader gives one part to each of the **20 specialists**, then posts one combined answer |
 | Actions tab -> Nexus AI Agent -> Run workflow | Runs any task (tick "swarm" for 20 workers) and posts the result as a new issue |
 | Nothing | Every Monday at 9am Sydney time it updates the "Weekly AI agent report" issue |
 
@@ -25,5 +55,6 @@ Any other OpenAI-compatible service works too: add the secret `AI_API_KEY` and t
 
 ## Files
 - `.github/workflows/ai-agent.yml`: when it runs
-- `.github/ai-agent/agent.mjs`: the main agent
-- `.github/ai-agent/copies/agent-01.mjs` to `agent-20.mjs`: 20 identical copies, which run as the 20 swarm workers
+- `.github/ai-agent/agent.mjs`: the Leader
+- `.github/ai-agent/roles.json`: everyone's occupations
+- `.github/ai-agent/copies/agent-01.mjs` to `agent-20.mjs`: the 20 specialists

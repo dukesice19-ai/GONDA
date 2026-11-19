@@ -11,8 +11,13 @@ const ghHeaders = { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "applic
 const event = env.GITHUB_EVENT_PATH && fs.existsSync(env.GITHUB_EVENT_PATH) ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8")) : {};
 const mode = process.argv[2] || "reply";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ROLES = JSON.parse(fs.readFileSync(new URL(import.meta.url.includes("/copies/") ? "../roles.json" : "./roles.json", import.meta.url), "utf8"));
+const myNum = (import.meta.url.match(/agent-(\d\d)\.mjs$/) || [])[1];
+let ROLE = myNum ? ROLES.copies[Number(myNum) - 1] : ROLES.lead;
+const roleLine = (r) => `Your occupation: ${r.title} (${r.category} department). Focus: ${r.focus}`;
+const roster = ROLES.copies.map((r, i) => `${i + 1}. ${r.title} [${r.category}] (/agent ${r.key})`).join("\n");
 
-const SYSTEM = `You are the Nexus Universal AI Agent for GODFREY TRADING PTY LTD, installed in the GitHub repository ${REPO}.
+const BASE_SYSTEM = `You are the Nexus Universal AI Agent for GODFREY TRADING PTY LTD, installed in the GitHub repository ${REPO}.
 You are one identical, versatile, comprehensive agent. You can act as:
 - Software engineer: write, explain, debug and review code in any language; propose exact file changes as diffs.
 - Architect and planner: break goals into clear step-by-step plans with priorities and checklists.
@@ -27,7 +32,11 @@ Rules:
 - Use the repository context you are given; say clearly when something is missing or unknown. Never invent files or facts.
 - Prefer concrete output: code blocks, checklists, tables.
 - When useful, end with "Suggested next steps" (max 5).
-- Never reveal secrets or tokens. Never promise investment returns or coin prices; no market manipulation advice.`;
+- Never reveal secrets or tokens. Never promise investment returns or coin prices; no market manipulation advice.
+Your team (20 specialists led by the Leader):
+${roster}`;
+let SYSTEM = BASE_SYSTEM + "\n" + roleLine(ROLE);
+function useRole(r) { ROLE = r; SYSTEM = BASE_SYSTEM + "\n" + roleLine(r); }
 
 // ---------- model call (GitHub Models free by default; Groq/Cerebras optional for speed) ----------
 function provider() {
@@ -94,15 +103,18 @@ try {
 // ---------- modes ----------
 if (mode === "reply") {
   const thread = await threadText();
+  const cmd = (event.comment?.body || "").match(/^\/agent\s+(\w+)/);
+  const picked = cmd && ROLES.copies.find((r) => r.key === cmd[1].toLowerCase());
+  if (picked) useRole(picked);
   const answer = await llm(`${repoContext(thread)}\n\n=== Conversation / task ===\n${thread}\n\nRespond to the latest request.`);
-  await deliver(`Agent: ${(env.AGENT_TASK || "task").slice(0, 60)}`, answer);
+  await deliver(`Agent: ${(env.AGENT_TASK || "task").slice(0, 60)}`, `**${ROLE.title}** (${ROLE.category})\n\n${answer}`);
 }
 
 if (mode === "plan") {
   const thread = await threadText();
-  const raw = await llm(`${repoContext(thread)}\n\n=== Task ===\n${thread}\n\nSplit this task into exactly 20 distinct, non-overlapping sub-tasks that 20 parallel workers can do independently. Reply ONLY with a JSON array of 20 strings.`, 2000);
+  const raw = await llm(`${repoContext(thread)}\n\n=== Task ===\n${thread}\n\nWrite exactly 20 sub-tasks, one for each specialist in the team list, in the same order (1 = ${ROLES.copies[0].title} ... 20 = ${ROLES.copies[19].title}). Each sub-task must fit that occupation. Reply ONLY with a JSON array of 20 strings.`, 2000);
   let subs; try { subs = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1)); } catch { subs = []; }
-  subs = subs.slice(0, 20); while (subs.length < 20) subs.push(`Angle ${subs.length + 1}: review the task from a different perspective and add anything missing.`);
+  subs = subs.slice(0, 20); while (subs.length < 20) subs.push(`As the ${ROLES.copies[subs.length].title}, cover your part of the task.`);
   fs.mkdirSync("swarm", { recursive: true });
   fs.writeFileSync("swarm/plan.json", JSON.stringify({ task: thread, subs }, null, 2));
   fs.appendFileSync(env.GITHUB_OUTPUT, `indexes=${JSON.stringify([...Array(20).keys()])}\n`);
@@ -111,17 +123,17 @@ if (mode === "plan") {
 if (mode === "worker") {
   const i = Number(process.argv[3]);
   const { task, subs } = JSON.parse(fs.readFileSync("swarm/plan.json", "utf8"));
-  const out = await llm(`${repoContext(task + subs[i])}\n\n=== Overall task ===\n${task}\n\n=== Your sub-task (worker ${i + 1} of 20) ===\n${subs[i]}\n\nDo only your sub-task, thoroughly.`, 1500);
+  const out = await llm(`${repoContext(task + subs[i])}\n\n=== Overall task ===\n${task}\n\n=== Your sub-task as ${ROLE.title} (specialist ${i + 1} of 20) ===\n${subs[i]}\n\nDo only your sub-task, thoroughly.`, 1500);
   fs.mkdirSync("swarm-out", { recursive: true });
-  fs.writeFileSync(`swarm-out/worker-${String(i + 1).padStart(2, "0")}.md`, `### Worker ${i + 1}: ${subs[i]}\n\n${out}\n`);
+  fs.writeFileSync(`swarm-out/worker-${String(i + 1).padStart(2, "0")}.md`, `### ${i + 1}. ${ROLE.title} (${ROLE.category})\n**Task:** ${subs[i]}\n\n${out}\n`);
 }
 
 if (mode === "combine") {
   const { task } = JSON.parse(fs.readFileSync("swarm/plan.json", "utf8"));
   const parts = fs.readdirSync("swarm-out", { recursive: true }).filter((f) => String(f).endsWith(".md")).sort()
     .map((f) => fs.readFileSync(`swarm-out/${f}`, "utf8"));
-  const summary = await llm(`Task:\n${task}\n\n20 workers produced these results:\n\n${parts.join("\n---\n").slice(0, 60000)}\n\nMerge them into one clear, complete final answer. Remove duplicates, fix conflicts, keep all useful detail, end with Suggested next steps.`, 4000);
-  await deliver(`Agent swarm: ${(env.AGENT_TASK || "task").slice(0, 50)}`, `## Final answer (20 workers combined)\n\n${summary}\n\n<details><summary>All 20 worker results</summary>\n\n${parts.join("\n").slice(0, 55000)}\n</details>`);
+  const summary = await llm(`Task:\n${task}\n\n20 specialists produced these results:\n\n${parts.join("\n---\n").slice(0, 60000)}\n\nMerge them into one clear, complete final answer. Remove duplicates, fix conflicts, keep all useful detail, end with Suggested next steps.`, 4000);
+  await deliver(`Agent swarm: ${(env.AGENT_TASK || "task").slice(0, 50)}`, `## Final answer from the Leader (20 specialists combined)\n\n${summary}\n\n<details><summary>All 20 specialist results</summary>\n\n${parts.join("\n").slice(0, 55000)}\n</details>`);
 }
 
 if (mode === "report") {
