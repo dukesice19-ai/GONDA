@@ -45,20 +45,19 @@ function useRole(r) { ROLE = r; SYSTEM = BASE_SYSTEM + "\n" + roleLine(r); }
 
 // ---------- model call (GitHub Models free by default; Groq/Cerebras optional for speed) ----------
 function provider() {
-  if (env.AI_API_KEY) return { url: (env.AI_API_BASE || "https://api.openai.com/v1").replace(/\/$/, "") + "/chat/completions", key: env.AI_API_KEY, model: env.AGENT_MODEL || "gpt-4.1-mini" };
-  if (env.CEREBRAS_API_KEY) return { url: "https://api.cerebras.ai/v1/chat/completions", key: env.CEREBRAS_API_KEY, model: env.AGENT_MODEL || "llama-3.3-70b" };
-  if (env.GROQ_API_KEY) return { url: "https://api.groq.com/openai/v1/chat/completions", key: env.GROQ_API_KEY, model: env.AGENT_MODEL || "llama-3.3-70b-versatile" };
-  return null;
+  // Your own key for a service you choose (optional). Otherwise: private model running inside this GitHub runner.
+  if (env.AI_API_KEY) return { url: (env.AI_API_BASE || "").replace(/\/$/, "") + "/chat/completions", key: env.AI_API_KEY, model: env.AGENT_MODEL };
+  return { url: "http://localhost:11434/v1/chat/completions", key: null, model: env.AGENT_MODEL || "qwen2.5:3b", local: true };
 }
-const SETUP_MSG = "The Nexus AI Agent needs one free AI key to work. Add a repository secret named `GROQ_API_KEY` (free at console.groq.com) or `CEREBRAS_API_KEY` (free at cloud.cerebras.ai) under Settings -> Secrets and variables -> Actions. See AI_AGENT.md.";
+const SETUP_MSG = "The private AI model did not start. Check the \"Start private AI model\" step in the Actions log.";
 async function llm(user, maxTokens = 2500) {
   const p = provider();
-  if (!p) throw new Error("NO_KEY");
+  if (p.free) { const gap = 16000 - (Date.now() - (globalThis.__lastCall || 0)); if (gap > 0) await sleep(gap); globalThis.__lastCall = Date.now(); }
   for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch(p.url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: p.model, max_tokens: maxTokens, temperature: 0.3, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }] }),
+      headers: p.key ? { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: p.model, max_tokens: maxTokens, ...(p.local ? { options: { num_ctx: 8192 } } : {}), temperature: 0.3, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }] }),
     });
     const text = await res.text();
     if (res.ok) { try { return JSON.parse(text).choices[0].message.content.trim(); } catch { console.log("Unexpected reply:", text.slice(0, 200)); } }
@@ -83,8 +82,8 @@ function repoContext(question = "") {
   let files = [];
   try { files = execSync("git ls-files", { encoding: "utf8" }).split("\n").filter(Boolean); } catch {}
   const readme = files.find((f) => /^readme(\.md)?$/i.test(f));
-  let ctx = `Repository: ${REPO}\nFiles (${files.length}):\n${files.slice(0, 300).join("\n")}${files.length > 300 ? "\n..." : ""}\n`;
-  if (readme) ctx += `\n--- ${readme} ---\n${fs.readFileSync(readme, "utf8").slice(0, 6000)}\n`;
+  let ctx = `Repository: ${REPO}\nFiles (${files.length}):\n${files.slice(0, 150).join("\n")}${files.length > 300 ? "\n..." : ""}\n`;
+  if (readme) ctx += `\n--- ${readme} ---\n${fs.readFileSync(readme, "utf8").slice(0, 4000)}\n`;
   const q = question.toLowerCase();
   const mentioned = files.filter((f) => q.includes(f.toLowerCase()) || q.includes(f.split("/").pop().toLowerCase())).slice(0, 6);
   for (const f of mentioned) { try { ctx += `\n--- ${f} ---\n${fs.readFileSync(f, "utf8").slice(0, 8000)}\n`; } catch {} }
@@ -198,7 +197,7 @@ if (mode === "daily") {
 }
 
 } catch (e) {
-  if (e.message === "NO_KEY") {
+  if (e.message === "Model unavailable after retries") {
     console.log(SETUP_MSG);
     if (event.issue && mode !== "worker") await comment(event.issue.number, SETUP_MSG);
     process.exitCode = 1;

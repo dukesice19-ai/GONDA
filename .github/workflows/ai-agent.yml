@@ -1,5 +1,5 @@
 # Nexus Universal AI Agent - identical in every repository.
-# Needs one free key as a repo secret: GROQ_API_KEY or CEREBRAS_API_KEY (or AI_API_KEY + AI_API_BASE for any OpenAI-compatible service).
+# Private: the AI model runs inside the GitHub runner. Nothing is sent to any outside AI company.
 name: Nexus AI Agent
 
 on:
@@ -28,8 +28,6 @@ concurrency:
   group: ai-agent-${{ github.event.issue.number || github.run_id }}
 
 env:
-  CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
   AI_API_KEY: ${{ secrets.AI_API_KEY }}
   AI_API_BASE: ${{ vars.AI_API_BASE }}
   AGENT_MODEL: ${{ vars.AGENT_MODEL }}
@@ -48,6 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: ./.github/actions/local-ai
       - run: node .github/ai-agent/agent.mjs reply
 
   plan:
@@ -63,6 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: ./.github/actions/local-ai
       - id: plan
         run: node .github/ai-agent/agent.mjs plan
       - uses: actions/upload-artifact@v4
@@ -72,7 +72,7 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5          # stays inside free rate limits
+      max-parallel: 5
       fail-fast: false
       matrix:
         index: ${{ fromJSON(needs.plan.outputs.indexes) }}
@@ -80,6 +80,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: ./.github/actions/local-ai
       - uses: actions/download-artifact@v4
         with: { name: swarm-plan, path: swarm }
       - name: Run agent copy ${{ matrix.index }}
@@ -97,6 +98,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: ./.github/actions/local-ai
       - uses: actions/download-artifact@v4
         with: { name: swarm-plan, path: swarm }
       - uses: actions/download-artifact@v4
@@ -104,19 +106,20 @@ jobs:
       - run: node .github/ai-agent/agent.mjs combine
 
   report:
-    if: github.event_name == 'schedule' && github.event.schedule == '0 22 * * 0'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 22 * * 0' && (github.event.repository.private || vars.AGENT_PUBLIC_OK == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: ./.github/actions/local-ai
       - run: node .github/ai-agent/agent.mjs report
 
   daily:
     # Leader's daily revenue shift: tasks for all 20 specialists, revenue tracker, procedures, workflows, daily log.
-    if: (github.event_name == 'schedule' && github.event.schedule == '0 21 * * *') || (github.event_name == 'workflow_dispatch' && inputs.task == 'daily')
+    if: ((github.event_name == 'schedule' && github.event.schedule == '0 21 * * *') && (github.event.repository.private || vars.AGENT_PUBLIC_OK == 'true')) || (github.event_name == 'workflow_dispatch' && inputs.task == 'daily')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     permissions:
       contents: write
       issues: write
@@ -124,4 +127,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node .github/ai-agent/agent.mjs daily
+      - uses: ./.github/actions/local-ai
+      - name: Leader daily shift
+        env:
+          IS_PRIVATE: ${{ github.event.repository.private }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # Private repos: scheduled shift runs Mondays only, to stay inside the free 2,000 Actions minutes.
+          if [ "$EVENT" = "schedule" ] && [ "$IS_PRIVATE" = "true" ] && [ "$(TZ=Australia/Sydney date +%u)" != "1" ]; then echo "Private repo: shift runs Mondays"; exit 0; fi
+          node .github/ai-agent/agent.mjs daily

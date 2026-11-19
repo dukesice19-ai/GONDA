@@ -1,6 +1,6 @@
 # Nexus Universal AI Agent
 
-This repository has the Nexus Universal AI Agent. It's the same agent in every GODFREY TRADING PTY LTD repository. It runs by itself on GitHub Actions. It needs one free AI key (see Setup).
+This repository has the Nexus Universal AI Agent. It's the same agent in every GODFREY TRADING PTY LTD repository. It runs by itself on GitHub Actions. **Private by design**: the AI model (Qwen 2.5, 3B) runs inside GitHub's own runner for each job. Your code, plans and issues are never sent to any outside AI company. No keys and no sign-up.
 
 ## What it can do
 Write and fix code, review code, plan projects, research, write docs, help with deployment, check security, and suggest product and growth ideas.
@@ -61,15 +61,14 @@ To start a shift right now: Actions -> Nexus AI Agent -> Run workflow -> type `d
 
 Only you and your collaborators can trigger it with `/agent`. Strangers can't use it.
 
-## Setup (one time, free)
-1. Get a free key from Groq (console.groq.com) or Cerebras (cloud.cerebras.ai). Both are among the fastest AI services.
-2. In this repo, go to Settings -> Secrets and variables -> Actions -> New repository secret.
-3. Name it `GROQ_API_KEY` (or `CEREBRAS_API_KEY`) and paste the key.
-
-Any other OpenAI-compatible service works too: add the secret `AI_API_KEY` and the variable `AI_API_BASE`.
+## Privacy
+- The AI runs inside the GitHub runner, so no outside AI company sees your work.
+- **Public repositories:** anyone can read them, including issues and the `ops/` files. Daily and weekly shifts are **switched off** in public repos until you make the repo private or set the repository variable `AGENT_PUBLIC_OK` to `true`.
+- GitHub Actions minutes: free and unlimited for public repos. Private repos on the free plan get 2,000 minutes a month, so private daily shifts are limited to Mondays.
 
 ## Files
 - `.github/workflows/ai-agent.yml`: when it runs
+- `.github/actions/local-ai/action.yml`: starts the private AI model
 - `.github/ai-agent/agent.mjs`: the Leader
 - `.github/ai-agent/roles.json`: everyone's occupations
 - `.github/ai-agent/copies/agent-01.mjs` to `agent-20.mjs`: the 20 specialists
