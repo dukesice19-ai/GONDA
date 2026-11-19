@@ -1,0 +1,112 @@
+# Nexus Universal AI Agent - identical in every repository.
+# Needs one free key as a repo secret: GROQ_API_KEY or CEREBRAS_API_KEY (or AI_API_KEY + AI_API_BASE for any OpenAI-compatible service).
+name: Nexus AI Agent
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "0 22 * * 0"   # weekly report, Monday 9am Sydney
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "What should the agent do?"
+        required: true
+      swarm:
+        description: "Use 20 parallel workers"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ai-agent-${{ github.event.issue.number || github.run_id }}
+
+env:
+  CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  AI_API_KEY: ${{ secrets.AI_API_KEY }}
+  AI_API_BASE: ${{ vars.AI_API_BASE }}
+  AGENT_MODEL: ${{ vars.AGENT_MODEL }}
+  AGENT_TASK: ${{ inputs.task }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  reply:
+    if: >-
+      (github.event_name == 'issues' && !contains(github.event.issue.body, '/agent swarm')) ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/agent') && !startsWith(github.event.comment.body, '/agent swarm') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'workflow_dispatch' && !inputs.swarm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node .github/ai-agent/agent.mjs reply
+
+  plan:
+    if: >-
+      (github.event_name == 'issues' && contains(github.event.issue.body, '/agent swarm')) ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/agent swarm') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'workflow_dispatch' && inputs.swarm)
+    runs-on: ubuntu-latest
+    outputs:
+      indexes: ${{ steps.plan.outputs.indexes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - id: plan
+        run: node .github/ai-agent/agent.mjs plan
+      - uses: actions/upload-artifact@v4
+        with: { name: swarm-plan, path: swarm/plan.json }
+
+  workers:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5          # stays inside free rate limits
+      fail-fast: false
+      matrix:
+        index: ${{ fromJSON(needs.plan.outputs.indexes) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/download-artifact@v4
+        with: { name: swarm-plan, path: swarm }
+      - name: Run agent copy ${{ matrix.index }}
+        run: |
+          N=$(printf "%02d" $(( ${{ matrix.index }} + 1 )))
+          node .github/ai-agent/copies/agent-$N.mjs worker ${{ matrix.index }}
+      - uses: actions/upload-artifact@v4
+        with: { name: "worker-${{ matrix.index }}", path: swarm-out/ }
+
+  combine:
+    needs: [plan, workers]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/download-artifact@v4
+        with: { name: swarm-plan, path: swarm }
+      - uses: actions/download-artifact@v4
+        with: { pattern: "worker-*", path: swarm-out, merge-multiple: true }
+      - run: node .github/ai-agent/agent.mjs combine
+
+  report:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node .github/ai-agent/agent.mjs report
